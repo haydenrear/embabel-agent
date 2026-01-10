@@ -1227,7 +1227,7 @@ This file also informs coding agent behavior.
 
 [![Embabel contributors](https://contrib.rocks/image?repo=embabel/embabel-agent)](https://github.com/embabel/embabel-agent/graphs/contributors)
 
-
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/embabel/embabel-agent)
 
 --------------------
 (c) Embabel Software Inc 2024-2025.
