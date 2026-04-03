@@ -25,6 +25,7 @@ import com.embabel.agent.core.support.LlmInteraction
 import com.embabel.agent.spi.AutoLlmSelectionCriteriaResolver
 import com.embabel.agent.spi.LlmService
 import com.embabel.agent.spi.ToolDecorator
+import com.embabel.agent.spi.common.ActionRetryListener
 import com.embabel.agent.spi.validation.DefaultValidationPromptGenerator
 import com.embabel.agent.spi.validation.ValidationPromptGenerator
 import com.embabel.chat.Message
@@ -61,9 +62,32 @@ abstract class AbstractLlmOperations(
     private val autoLlmSelectionCriteriaResolver: AutoLlmSelectionCriteriaResolver,
     protected val dataBindingProperties: LlmDataBindingProperties,
     protected val promptsProperties: LlmOperationsPromptsProperties = LlmOperationsPromptsProperties(),
+    protected val actionRetryListener: ActionRetryListener? = null,
 ) : LlmOperations {
 
     protected val logger: Logger = LoggerFactory.getLogger(javaClass)
+
+    /**
+     * Create a retry template that includes the ActionRetryListener if one is configured.
+     */
+    protected fun retryTemplateWithListener(
+        name: String,
+        agentProcess: AgentProcess,
+    ): org.springframework.retry.support.RetryTemplate {
+        val template = dataBindingProperties.retryTemplate(name)
+        if (actionRetryListener != null) {
+            template.registerListener(object : org.springframework.retry.RetryListener {
+                override fun <T, E : Throwable> onError(
+                    context: org.springframework.retry.RetryContext,
+                    callback: org.springframework.retry.RetryCallback<T, E>,
+                    throwable: Throwable,
+                ) {
+                    actionRetryListener.onActionRetry(context, throwable, agentProcess)
+                }
+            })
+        }
+        return template
+    }
 
     /**
      * Get timeout in milliseconds from options or default.
@@ -169,7 +193,7 @@ abstract class AbstractLlmOperations(
 
             // Wrap doTransform with retry for transient failures (e.g., malformed JSON)
             // and timeout for operations that take too long
-            var candidate = dataBindingProperties.retryTemplate(interaction.id.value)
+            var candidate = retryTemplateWithListener(interaction.id.value, agentProcess)
                 .execute<O, Exception> {
                     executeWithTimeout(
                         interactionId = interaction.id.value,
@@ -187,7 +211,7 @@ abstract class AbstractLlmOperations(
                 var constraintViolations = validator.validate(candidate)
                 if (constraintViolations.isNotEmpty()) {
                     // If we had violations, try again, once, before throwing an exception
-                    candidate = dataBindingProperties.retryTemplate(interaction.id.value)
+                    candidate = retryTemplateWithListener(interaction.id.value, agentProcess)
                         .execute<O, Exception> {
                             executeWithTimeout(
                                 interactionId = interaction.id.value,

@@ -19,6 +19,7 @@ package com.embabel.agent.core.support
 import com.embabel.agent.api.common.PlatformServices
 import com.embabel.agent.core.*
 import com.embabel.agent.spi.PlannerFactory
+import com.embabel.agent.spi.common.ActionRetryListener
 import com.embabel.plan.WorldState
 import com.embabel.plan.common.condition.ConditionWorldState
 import kotlinx.coroutines.future.await
@@ -41,6 +42,7 @@ open class ConcurrentAgentProcess(
     plannerFactory: PlannerFactory,
     timestamp: Instant = Instant.now(),
     val callbacks: List<AgentProcessCallback> = emptyList(),
+    actionRetryListener: ActionRetryListener? = null,
 ) : SimpleAgentProcess(
     id = id,
     parentId = parentId,
@@ -50,6 +52,7 @@ open class ConcurrentAgentProcess(
     platformServices = platformServices,
     plannerFactory = plannerFactory,
     timestamp = timestamp,
+    actionRetryListener = actionRetryListener,
 ) {
     override fun formulateAndExecutePlan(worldState: WorldState): AgentProcess {
         val plan = planner.bestValuePlanToAnyGoal(system = agent.planningSystem)

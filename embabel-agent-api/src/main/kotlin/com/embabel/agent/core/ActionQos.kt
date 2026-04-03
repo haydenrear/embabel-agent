@@ -15,7 +15,16 @@
  */
 package com.embabel.agent.core
 
+import com.embabel.agent.api.tool.ToolControlFlowSignal
+import com.embabel.agent.spi.common.ActionRetryListener
 import com.embabel.agent.spi.common.RetryProperties
+import com.embabel.agent.spi.support.LlmDataBindingProperties.Companion.isRateLimitError
+import com.embabel.common.util.loggerFor
+import org.springframework.retry.RetryCallback
+import org.springframework.retry.RetryContext
+import org.springframework.retry.RetryListener
+import org.springframework.retry.support.RetryTemplate
+import java.time.Duration
 
 /**
  * Quality of service requirements for an action
@@ -26,4 +35,45 @@ data class ActionQos(
     override val backoffMultiplier: Double = 5.0,
     override val backoffMaxInterval: Long = 60000,
     val idempotent: Boolean = false,
-) : RetryProperties
+) : RetryProperties {
+
+    fun retryTemplate(name: String, agentProcess: AgentProcess, actionRetryListener: ActionRetryListener?): RetryTemplate {
+        return RetryTemplate.builder()
+            .exponentialBackoff(
+                Duration.ofMillis(backoffMillis),
+                backoffMultiplier,
+                Duration.ofMillis(backoffMaxInterval)
+            )
+            .customPolicy(retryPolicy)
+            .withListener(object : RetryListener {
+                override fun <T, E : Throwable> onError(
+                    context: RetryContext,
+                    callback: RetryCallback<T, E>,
+                    throwable: Throwable,
+                ) {
+                    actionRetryListener?.onActionRetry(context, throwable, agentProcess)
+
+                    // ToolControlFlowSignal exceptions (ReplanRequestedException, UserInputRequiredException, etc.)
+                    // are control flow signals, not errors to retry - rethrow to abort retry
+                    if (throwable is ToolControlFlowSignal) {
+                        throw throwable
+                    }
+                    if (isRateLimitError(throwable)) {
+                        loggerFor<RetryProperties>().info(
+                            "LLM invocation {} RATE LIMITED: Retry attempt {} of {}",
+                            name,
+                            context.retryCount,
+                            if (retryPolicy.maxAttempts > 0) retryPolicy.maxAttempts else "unknown",
+                        )
+                        return
+                    }
+                    loggerFor<RetryProperties>().info(
+                        "Operation $name: Retry error. Retry count: ${context.retryCount}",
+                        throwable,
+                    )
+                }
+            })
+            .build()
+    }
+
+}

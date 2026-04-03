@@ -24,6 +24,7 @@ import com.embabel.agent.core.*
 import com.embabel.agent.core.expression.LogicalExpressionParser
 import com.embabel.agent.core.internal.LlmOperations
 import com.embabel.agent.spi.*
+import com.embabel.agent.spi.common.ActionRetryListener
 import com.embabel.agent.spi.config.spring.AgentPlatformProperties
 import com.embabel.agent.spi.support.DefaultPlannerFactory
 import com.embabel.agent.spi.support.InMemoryAgentProcessRepository
@@ -66,6 +67,9 @@ open class DefaultAgentPlatform(
 
     @Autowired(required = false)
     private var callbacks: List<AgentProcessCallback> = emptyList()
+
+    @Autowired(required = false)
+    private var actionRetryListener: ActionRetryListener? = null
 
     private val logger = LoggerFactory.getLogger(DefaultAgentPlatform::class.java)
 
@@ -184,6 +188,7 @@ open class DefaultAgentPlatform(
                 parentId = null,
                 processOptions = processOptions,
                 plannerFactory = plannerFactory,
+                actionRetryListener = actionRetryListener,
             )
 
             AgentPlatformProperties.ProcessType.CONCURRENT -> ConcurrentAgentProcess(
@@ -195,6 +200,7 @@ open class DefaultAgentPlatform(
                 processOptions = processOptions,
                 plannerFactory = plannerFactory,
                 callbacks = callbacks,
+                actionRetryListener = actionRetryListener,
             )
         }
         logger.debug("🚀 Creating process {}", agentProcess.id)
@@ -222,6 +228,7 @@ open class DefaultAgentPlatform(
             parentId = parentAgentProcess.id,
             processOptions = processOptions,
             plannerFactory = plannerFactory,
+            actionRetryListener = actionRetryListener,
         )
         logger.debug("👶 Creating child process {} from {}", childAgentProcess.id, parentAgentProcess.id)
         agentProcessRepository.save(childAgentProcess)

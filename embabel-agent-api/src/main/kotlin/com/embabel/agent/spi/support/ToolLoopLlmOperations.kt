@@ -26,6 +26,7 @@ import com.embabel.agent.core.support.LlmInteraction
 import com.embabel.agent.spi.AutoLlmSelectionCriteriaResolver
 import com.embabel.agent.spi.LlmService
 import com.embabel.agent.spi.ToolDecorator
+import com.embabel.agent.spi.common.ActionRetryListener
 import com.embabel.agent.spi.loop.LlmMessageSender
 import com.embabel.agent.spi.loop.ToolInjectionStrategy
 import com.embabel.agent.spi.loop.ToolLoopFactory
@@ -96,6 +97,7 @@ open class ToolLoopLlmOperations(
     internal open val objectMapper: ObjectMapper = jacksonObjectMapper().registerModule(JavaTimeModule()),
     protected val observationRegistry: ObservationRegistry = ObservationRegistry.NOOP,
     protected val toolLoopFactory: ToolLoopFactory = ToolLoopFactory.default(),
+    actionRetryListener: ActionRetryListener? = null,
 ) : AbstractLlmOperations(
     toolDecorator = toolDecorator,
     modelProvider = modelProvider,
@@ -104,6 +106,7 @@ open class ToolLoopLlmOperations(
     dataBindingProperties = dataBindingProperties,
     autoLlmSelectionCriteriaResolver = autoLlmSelectionCriteriaResolver,
     promptsProperties = promptsProperties,
+    actionRetryListener = actionRetryListener,
 ) {
 
     override fun <O> doTransform(

@@ -24,6 +24,7 @@ import com.embabel.agent.core.support.toEmbabelUsage
 import com.embabel.agent.spi.AutoLlmSelectionCriteriaResolver
 import com.embabel.agent.spi.LlmService
 import com.embabel.agent.spi.ToolDecorator
+import com.embabel.agent.spi.common.ActionRetryListener
 import com.embabel.agent.spi.loop.LlmMessageSender
 import com.embabel.agent.spi.loop.ToolLoopFactory
 import com.embabel.agent.spi.support.*
@@ -101,6 +102,7 @@ internal class ChatClientLlmOperations(
     observationRegistry: ObservationRegistry = ObservationRegistry.NOOP,
     private val customizers: List<ChatClientCustomizer> = emptyList(),
     toolLoopFactory: ToolLoopFactory = ToolLoopFactory.default(),
+    actionRetryListener: ActionRetryListener? = null,
 ) : ToolLoopLlmOperations(
     toolDecorator = toolDecorator,
     modelProvider = modelProvider,
@@ -112,6 +114,7 @@ internal class ChatClientLlmOperations(
     objectMapper = objectMapper,
     observationRegistry = observationRegistry,
     toolLoopFactory = toolLoopFactory,
+    actionRetryListener = actionRetryListener,
 ) {
 
     @PostConstruct
@@ -244,7 +247,7 @@ internal class ChatClientLlmOperations(
         val chatOptions = requireSpringAiLlm(llm).optionsConverter.convertOptions(interaction.llm)
         val timeoutMillis = getTimeoutMillis(interaction.llm)
 
-        return dataBindingProperties.retryTemplate(interaction.id.value).execute<Result<O>, DatabindException> {
+        return retryTemplateWithListener(interaction.id.value, llmRequestEvent.agentProcess).execute<Result<O>, DatabindException> {
             val attempt = (RetrySynchronizationManager.getContext()?.retryCount ?: 0) + 1
 
             val callResponse = try {
@@ -490,7 +493,8 @@ internal class ChatClientLlmOperations(
         // Resolve tool groups and decorate tools
         val tools = resolveAndDecorateTools(interaction, agentProcess, action)
 
-        return dataBindingProperties.retryTemplate(interaction.id.value)
+        return (agentProcess?.let { retryTemplateWithListener(interaction.id.value, it) }
+            ?: dataBindingProperties.retryTemplate(interaction.id.value))
             .execute<ThinkingResponse<O>, DatabindException> {
                 val attempt = (RetrySynchronizationManager.getContext()?.retryCount ?: 0) + 1
 
@@ -640,7 +644,8 @@ internal class ChatClientLlmOperations(
             // Resolve tool groups and decorate tools
             val tools = resolveAndDecorateTools(interaction, agentProcess, action)
 
-            val result = dataBindingProperties.retryTemplate(interaction.id.value)
+            val result = (agentProcess?.let { retryTemplateWithListener(interaction.id.value, it) }
+                ?: dataBindingProperties.retryTemplate(interaction.id.value))
                 .execute<Result<ThinkingResponse<O>>, DatabindException> {
                     val future = CompletableFuture.supplyAsync {
                         chatClient

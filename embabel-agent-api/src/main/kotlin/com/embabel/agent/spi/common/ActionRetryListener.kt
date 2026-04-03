@@ -13,13 +13,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.embabel.agent.api.validation
+package com.embabel.agent.spi.common
 
-import com.embabel.agent.core.AgentScope
-import com.embabel.agent.spi.validation.DetailedValidationResult
-import com.embabel.common.core.validation.ValidationResult
+import com.embabel.agent.core.AgentProcess
+import org.springframework.retry.RetryContext
 
-interface AgentValidationManager {
-    fun validate(agentScope: AgentScope): ValidationResult
-    fun validateWithDetails(agentScope: AgentScope): DetailedValidationResult
+interface ActionRetryListener {
+
+    fun onActionRetry(
+        context: RetryContext,
+        throwable: Throwable,
+        agentProcess: AgentProcess
+    )
+
 }

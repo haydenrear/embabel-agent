@@ -24,6 +24,7 @@ import com.embabel.agent.core.AgentProcess.Companion.withCurrent
 import com.embabel.agent.spi.DelayedActionExecutionSchedule
 import com.embabel.agent.spi.ProntoActionExecutionSchedule
 import com.embabel.agent.spi.ScheduledActionExecutionSchedule
+import com.embabel.agent.spi.common.ActionRetryListener
 import com.embabel.agent.spi.support.AgenticEventListenerToolsStats
 import com.embabel.plan.WorldState
 import com.embabel.plan.common.condition.WorldStateDeterminer
@@ -46,6 +47,7 @@ abstract class AbstractAgentProcess(
     @get:JsonIgnore
     protected val platformServices: PlatformServices,
     override val timestamp: Instant = Instant.now(),
+    protected val actionRetryListener: ActionRetryListener? = null,
 ) : AgentProcess, Blackboard by blackboard {
 
     protected val logger: Logger = LoggerFactory.getLogger(javaClass)
@@ -375,7 +377,7 @@ abstract class AbstractAgentProcess(
 
         val timestamp = Instant.now()
         val actionStatus = withCurrent {
-            action.qos.retryTemplate("Action-${action.name}").execute<ActionStatus, Throwable> {
+            action.qos.retryTemplate("Action-${action.name}", this@AbstractAgentProcess, actionRetryListener).execute<ActionStatus, Throwable> {
                 action.execute(
                     processContext = processContext,
                 )

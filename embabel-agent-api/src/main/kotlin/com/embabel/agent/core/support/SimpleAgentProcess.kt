@@ -27,6 +27,7 @@ import com.embabel.agent.core.Blackboard
 import com.embabel.agent.core.ProcessOptions
 import com.embabel.agent.core.ReplanRequestedException
 import com.embabel.agent.spi.PlannerFactory
+import com.embabel.agent.spi.common.ActionRetryListener
 import com.embabel.common.util.indentLines
 import com.embabel.plan.Plan
 import com.embabel.plan.Planner
@@ -34,7 +35,7 @@ import com.embabel.plan.WorldState
 import com.embabel.plan.common.condition.WorldStateDeterminer
 import java.time.Instant
 
-open class SimpleAgentProcess(
+open class SimpleAgentProcess @JvmOverloads constructor(
     id: String,
     parentId: String?,
     agent: Agent,
@@ -43,6 +44,7 @@ open class SimpleAgentProcess(
     platformServices: PlatformServices,
     plannerFactory: PlannerFactory,
     timestamp: Instant = Instant.now(),
+    actionRetryListener: ActionRetryListener? = null,
 ) : AbstractAgentProcess(
     id = id,
     parentId = parentId,
@@ -51,6 +53,7 @@ open class SimpleAgentProcess(
     blackboard = blackboard,
     platformServices = platformServices,
     timestamp = timestamp,
+    actionRetryListener = actionRetryListener,
 ) {
 
     override val worldStateDeterminer: WorldStateDeterminer = BlackboardWorldStateDeterminer(
